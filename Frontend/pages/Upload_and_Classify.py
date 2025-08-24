@@ -120,7 +120,7 @@ st.markdown("""
             border-radius: 1rem !important;
             font-family: 'Orbitron', sans-serif !important;
             font-weight: 600 !important;
-            font-size: 0.9rem !important;
+            font-size: 0.7rem !important;
             padding: 0.8rem 1.5rem !important;
             transition: all 0.3s ease !important;
             box-shadow: 0 8px 25px rgba(0, 195, 255, 0.4) !important;
