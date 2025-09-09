@@ -138,7 +138,7 @@ features = [
     {"title": "Code Generator", "page": "Code_Generator"},
     {"title": "Test Generator", "page": "Test_Generator"},
     {"title": "Bug Fixer", "page": "Bug_Fixer"},
-    {"title": "Chat Bot", "page": "Chat_Bot"},
+    {"title": "Chat Bot", "page": "ChatBot"},
     {"title": "Feedback", "page": "Feedback"},
 ]
 

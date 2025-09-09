@@ -1,4 +1,8 @@
 import streamlit as st
+import requests
+import json
+import re
+from typing import Dict, List
 
 st.set_page_config(page_title="SmartSDLC - Upload and Classify", layout="wide")
 
@@ -95,45 +99,53 @@ st.markdown("""
             border-color: #00c3ff;
         }
         
-        /* Input styling (for file uploader) */
-        .stFileUploader > div > div > div > input {
-            background: #0d0d0f !important;
-            color: #f5f5f7 !important;
-            border: 2px solid #23232a !important;
-            border-radius: 1rem !important;
-            font-family: 'Courier New', monospace !important;
-            font-size: 0.9rem !important;
-            padding: 1rem !important;
-            transition: all 0.3s ease !important;
+        /* SDLC Phase Cards */
+        .phase-card {
+            background: linear-gradient(135deg, #1a1a1f 0%, #232329 100%);
+            border-radius: 1rem;
+            margin: 1rem 0;
+            border: 1px solid #34343a;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
         }
         
-        .stFileUploader > div > div > div > input:focus {
-            border-color: #00c3ff !important;
-            box-shadow: 0 0 20px rgba(0, 195, 255, 0.3) !important;
-            background: #111115 !important;
-        }
-        /* File uploader button styling */
-        div[data-testid="stFileUploader"] button {
-            background: linear-gradient(135deg, #00c3ff, #7600bc) !important;
-            color: white !important;
-            border: none !important;
-            border-radius: 1rem !important;
-            font-family: 'Orbitron', sans-serif !important;
-            font-weight: 600 !important;
-            font-size: 0.7rem !important;
-            padding: 0.8rem 1.5rem !important;
-            transition: all 0.3s ease !important;
-            box-shadow: 0 8px 25px rgba(0, 195, 255, 0.4) !important;
-            text-transform: uppercase !important;
-            letter-spacing: 1px !important;
-            outline: none !important;
+        .phase-card:hover {
+            border-color: #00c3ff;
+            box-shadow: 0 8px 25px rgba(0, 195, 255, 0.15);
         }
         
-        div[data-testid="stFileUploader"] button:hover {
-            background: linear-gradient(135deg, #7600bc, #00c3ff) !important;
-            transform: translateY(-3px) scale(1.05) !important;
-            box-shadow: 0 15px 35px rgba(0, 195, 255, 0.6) !important;
+        .phase-header {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid #34343a;
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 600;
+            font-size: 1.1rem;
         }
+        
+        .phase-content {
+            padding: 1.5rem;
+        }
+        
+        .sentence-item {
+            background: rgba(0,0,0,0.2);
+            border-radius: 0.5rem;
+            padding: 0.8rem 1rem;
+            margin: 0.5rem 0;
+            border-left: 2px solid rgba(0, 195, 255, 0.3);
+            font-size: 0.95rem;
+            line-height: 1.5;
+            transition: all 0.2s ease;
+        }
+        
+        .sentence-item:hover {
+            background: rgba(0, 195, 255, 0.05);
+            border-left-color: #00c3ff;
+        }
+        
         /* Button styling */
         .stButton > button {
             background: linear-gradient(135deg, #00c3ff, #7600bc) !important;
@@ -177,29 +189,6 @@ st.markdown("""
             height: 3px;
             background: linear-gradient(90deg, #00c851, #69f0ae, #00c851);
             opacity: 0.8;
-        }
-        
-        /* Code block styling */
-        .stCode {
-            background: #0a0a0c !important;
-            border: 1px solid #23232a !important;
-            border-radius: 1rem !important;
-            box-shadow: inset 0 2px 10px rgba(0,0,0,0.3) !important;
-        }
-        
-        /* Success/Error styling */
-        .stSuccess {
-            background: linear-gradient(135deg, #1b2d1b 0%, #0f1b0f 100%) !important;
-            color: #69f0ae !important;
-            border: 1px solid #2e7d32 !important;
-            border-radius: 1rem !important;
-        }
-        
-        .stError {
-            background: linear-gradient(135deg, #2d1b1b 0%, #1b0f0f 100%) !important;
-            color: #ff7777 !important;
-            border: 1px solid #d32f2f !important;
-            border-radius: 1rem !important;
         }
         
         /* Loading animation */
@@ -271,31 +260,36 @@ st.markdown("""
             transform: translateY(-2px);
             box-shadow: 0 8px 25px rgba(0,195,255,0.4);
         }
-        
-        /* Responsive design */
-        @media (max-width: 768px) {
-            .main-container {
-                padding: 1rem;
-            }
-            
-            .page-title {
-                font-size: 2rem;
-            }
-            
-            .feature-card {
-                padding: 1.5rem;
-            }
-            
-            .nav-buttons {
-                flex-direction: column;
-                align-items: center;
-            }
-            a {
-                text-decoration: none;
-            }
-        }
     </style>
 """, unsafe_allow_html=True)
+
+# Configuration
+API_BASE_URL = "http://localhost:8000"  # Change this to your FastAPI server URL
+
+# Function to make API request
+def classify_pdf(uploaded_file):
+    """Send PDF file to FastAPI for classification"""
+    try:
+        files = {"file": (uploaded_file.name, uploaded_file.getvalue(), "application/pdf")}
+        
+        with st.spinner("🤖 AI is analyzing your PDF..."):
+            response = requests.post(f"{API_BASE_URL}/classify-pdf-sdlc/", files=files, timeout=120)
+        
+        if response.status_code == 200:
+            return response.json()
+        else:
+            st.error(f"API Error: {response.status_code} - {response.text}")
+            return None
+            
+    except requests.exceptions.ConnectionError:
+        st.error("❌ Could not connect to the API server. Please ensure the FastAPI server is running.")
+        return None
+    except requests.exceptions.Timeout:
+        st.error("⏱️ Request timed out. The file might be too large or the server is busy.")
+        return None
+    except Exception as e:
+        st.error(f"❌ An unexpected error occurred: {str(e)}")
+        return None
 
 # --- Header ---
 st.markdown("""
@@ -310,7 +304,7 @@ st.markdown('<div class="main-container">', unsafe_allow_html=True)
 # --- Page Title ---
 st.markdown("""
     <div class="page-title">
-        📁 AI Upload and Classify
+        📁 AI PDF SDLC Classifier
     </div>
 """, unsafe_allow_html=True)
 
@@ -318,7 +312,8 @@ st.markdown("""
 st.markdown("""
     <div class="feature-card">
         <p style="text-align: center; color: #b3b3b8; font-size: 1.2rem; margin: 0; line-height: 1.6; font-family:'Orbitron', sans-serif;">
-            📤 Upload files and let AI classify their content<br>
+            📤 Upload PDF files and let AI classify content into SDLC phases<br>
+            <span style="color: #00c3ff; font-size: 1rem;">Requirements • Design • Development • Testing • Deployment</span>
         </p>
     </div>
 """, unsafe_allow_html=True)
@@ -327,7 +322,7 @@ st.markdown("""
 st.markdown("""
     <div style="margin: 2rem 0;">
         <h3 style="color: #00c3ff; font-family: 'Orbitron', sans-serif; font-size: 1.5rem; margin-bottom: 1rem;">
-            📤 Upload Your File
+            📤 Upload Your PDF File
         </h3>
     </div>
 """, unsafe_allow_html=True)
@@ -339,18 +334,56 @@ uploaded_file = st.file_uploader(
 )
 
 # --- Classify Button ---
-if st.button("🚀 Classify File"):
+if st.button("🚀 Classify PDF"):
     if uploaded_file is not None:
         # Loading animation
         st.markdown("""
             <div class="loading-container">
                 <div class="loading-spinner"></div>
-                <div class="loading-text">🤖 AI is classifying your file...</div>
+                <div class="loading-text">🤖 AI is classifying your PDF...</div>
                 <p style="color: #b3b3b8; margin-top: 1rem;">
-                    Analyzing file • Processing content • Generating classification
+                    Extracting text • Analyzing content • Classifying sentences
                 </p>
             </div>
         """, unsafe_allow_html=True)
+        
+        # Make API call
+        result = classify_pdf(uploaded_file)
+        
+        # Clear loading animation
+        st.empty()
+        
+        if result:
+            # Display results in single card
+            st.markdown("""
+                <div class="result-container">
+                    <h2 style="color: #00c851; font-family: 'Orbitron', sans-serif; text-align: center; margin-bottom: 2rem;">
+                        ✅ Classification Results
+                    </h2>
+                    <div class="phase-card">
+                        <div class="phase-header">
+                            <span style="font-size: 1.5rem;">📋</span>
+                            <span style="color: #ff6b35; font-family: 'Orbitron', sans-serif;">Requirements</span>
+                        </div>
+                        <div class="phase-content">
+            """, unsafe_allow_html=True)
+            
+            st.markdown(f"""
+                <div class="sentence-item">
+                    {result["classified_sentences"]}
+                </div>
+            """, unsafe_allow_html=True)
+            
+            st.markdown("</div></div></div>", unsafe_allow_html=True)
+            
+        else:
+            st.error("❌ Failed to classify the PDF. Please check the file and try again.")
+    else:
+        st.warning("⚠️ Please upload a PDF file first!")
+
+# Show file info if uploaded
+if uploaded_file is not None:
+    st.info(f"📁 **File uploaded:** {uploaded_file.name} ({uploaded_file.size} bytes)")
 
 # --- Navigation Buttons ---
 st.markdown("""
@@ -363,4 +396,4 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
-st.markdown('</div>', unsafe_allow_html=True)  # Close main container
+st.markdown('</div>', unsafe_allow_html=True)

@@ -1,12 +1,3 @@
-import streamlit as st
-
-st.set_page_config(page_title="SmartSDLC - Chatbot", layout="wide")
-
-# --- Enhanced Global CSS ---
-st.markdown("""
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800&display=swap" rel="stylesheet">
-
-    <style>
         /* Hide Streamlit sidebar & default elements */
         section[data-testid="stSidebar"] {display: none !important;}
         div[data-testid="collapsedControl"] {display: none !important;}
@@ -39,6 +30,7 @@ st.markdown("""
             font-size: 2rem;
             font-weight: 800;
             background: linear-gradient(120deg, #00c3ff, #7600bc);
+            background-clip: text;
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             margin: 0;
@@ -59,6 +51,7 @@ st.markdown("""
             font-size: 3rem;
             font-weight: 800;
             background: linear-gradient(120deg, #00c3ff, #7600bc);
+            background-clip: text;
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             margin: 2rem 0;
@@ -95,45 +88,42 @@ st.markdown("""
             border-color: #00c3ff;
         }
         
-        /* Input styling (for text input and text area) */
-        .stTextInput > div > div > input, .stTextArea > div > div > textarea {
+        /* Input styling */
+        .stTextArea > div > div > textarea {
             background: #0d0d0f !important;
             color: #f5f5f7 !important;
             border: 2px solid #23232a !important;
             border-radius: 1rem !important;
             font-family: 'Courier New', monospace !important;
             font-size: 0.9rem !important;
+            line-height: 1.6 !important;
             padding: 1rem !important;
+            resize: vertical !important;
             transition: all 0.3s ease !important;
         }
         
-        .stTextInput > div > div > input:focus, .stTextArea > div > div > textarea:focus {
+        .stTextArea > div > div > textarea:focus {
             border-color: #00c3ff !important;
             box-shadow: 0 0 20px rgba(0, 195, 255, 0.3) !important;
             background: #111115 !important;
         }
         
-        /* File uploader button styling */
-        div[data-testid="stFileUploader"] button {
-            background: linear-gradient(135deg, #00c3ff, #7600bc) !important;
-            color: white !important;
-            border: none !important;
+        /* Selectbox styling */
+        .stSelectbox > div > div > select {
+            background: #0d0d0f !important;
+            color: #f5f5f7 !important;
+            border: 2px solid #23232a !important;
             border-radius: 1rem !important;
             font-family: 'Orbitron', sans-serif !important;
-            font-weight: 600 !important;
             font-size: 0.9rem !important;
-            padding: 0.8rem 1.5rem !important;
+            padding: 0.8rem !important;
             transition: all 0.3s ease !important;
-            box-shadow: 0 8px 25px rgba(0, 195, 255, 0.4) !important;
-            text-transform: uppercase !important;
-            letter-spacing: 1px !important;
-            outline: none !important;
         }
         
-        div[data-testid="stFileUploader"] button:hover {
-            background: linear-gradient(135deg, #7600bc, #00c3ff) !important;
-            transform: translateY(-3px) scale(1.05) !important;
-            box-shadow: 0 15px 35px rgba(0, 195, 255, 0.6) !important;
+        .stSelectbox > div > div > select:focus {
+            border-color: #00c3ff !important;
+            box-shadow: 0 0 20px rgba(0, 195, 255, 0.3) !important;
+            background: #111115 !important;
         }
         
         /* Button styling */
@@ -158,8 +148,8 @@ st.markdown("""
             box-shadow: 0 15px 35px rgba(0, 195, 255, 0.6) !important;
         }
         
-        /* Chat display container */
-        .chat-container {
+        /* Result container */
+        .result-container {
             background: linear-gradient(135deg, #0f1419 0%, #1a1f2e 100%);
             border-radius: 1.5rem;
             padding: 2rem;
@@ -168,11 +158,9 @@ st.markdown("""
             box-shadow: 0 8px 32px rgba(0,0,0,0.4);
             position: relative;
             overflow: hidden;
-            max-height: 500px;
-            overflow-y: auto;
         }
         
-        .chat-container::before {
+        .result-container::before {
             content: '';
             position: absolute;
             top: 0;
@@ -181,6 +169,14 @@ st.markdown("""
             height: 3px;
             background: linear-gradient(90deg, #00c851, #69f0ae, #00c851);
             opacity: 0.8;
+        }
+        
+        /* Code block styling */
+        .stCode {
+            background: #0a0a0c !important;
+            border: 1px solid #23232a !important;
+            border-radius: 1rem !important;
+            box-shadow: inset 0 2px 10px rgba(0,0,0,0.3) !important;
         }
         
         /* Success/Error styling */
@@ -267,12 +263,32 @@ st.markdown("""
             transform: translateY(-2px);
             box-shadow: 0 8px 25px rgba(0,195,255,0.4);
         }
-        
-        /* Responsive design */
-        @media (max-width: 768px) {
-            .main-container {
-                padding: 1rem;
-            }
+        div[data-testid="stCode"] > pre {
+            background: #0a0a0c !important;
+            color: #f5f5f7 !important;
+            border: 1px solid #23232a !important;
+            border-radius: 1rem !important;
+            box-shadow: inset 0 2px 10px rgba(0,0,0,0.3) !important;
+        }
+       
+    
+    /* Ensure black background for code block */
+    div[data-testid="stCode"] > pre {
+        background: #0a0a0c !important;
+        color: #f5f5f7 !important;
+        border: 1px solid #23232a !important;
+        border-radius: 1rem !important;
+        box-shadow: inset 0 2px 10px rgba(0,0,0,0.3) !important;
+        font-family: 'Courier New', monospace !important;
+        font-size: 0.9rem !important;
+        padding: 1rem !important;
+    }
+
+    /* Responsive design */
+    @media (max-width: 768px) {
+        .main-container {
+            padding: 1rem;
+        }
             
             .page-title {
                 font-size: 2rem;
@@ -289,95 +305,5 @@ st.markdown("""
             a {
                 text-decoration: none;
             }
+           
         }
-    </style>
-""", unsafe_allow_html=True)
-
-# --- Header ---
-st.markdown("""
-    <div class="smartsdlc-header">
-        <div class="smartsdlc-title">🚀 SmartSDLC - Chatbot</div>
-    </div>
-""", unsafe_allow_html=True)
-
-# --- Main Container ---
-st.markdown('<div class="main-container">', unsafe_allow_html=True)
-
-# --- Page Title ---
-st.markdown("""
-    <div class="page-title">
-        🤖 AI Chatbot
-    </div>
-""", unsafe_allow_html=True)
-
-# --- Description Card ---
-st.markdown("""
-    <div class="feature-card">
-        <p style="text-align: center; color: #b3b3b8; font-size: 1.2rem; margin: 0; line-height: 1.6; font-family:'Orbitron', sans-serif;">
-            💬 Interact with our AI to get instant coding assistance and answers<br>
-        </p>
-    </div>
-""", unsafe_allow_html=True)
-
-# --- Chat Display Section ---
-st.markdown("""
-    <div style="margin: 2rem 0;">
-        <h3 style="color: #00c3ff; font-family: 'Orbitron', sans-serif; font-size: 1.5rem; margin-bottom: 1rem;">
-            💬 Chat History
-        </h3>
-    </div>
-""", unsafe_allow_html=True)
-
-st.markdown("""
-    <div class="chat-container">
-        <p style="color: #b3b3b8; font-size: 1rem; text-align: center;font-family: 'Orbitron', sans-serif;">
-            Your conversation with the AI will appear here...
-        </p>
-    </div>
-""", unsafe_allow_html=True)
-
-# --- Chat Input Section ---
-st.markdown("""
-    <div style="margin: 2rem 0;">
-        <h3 style="color: #00c3ff; font-family: 'Orbitron', sans-serif; font-size: 1.5rem; margin-bottom: 1rem;">
-            📩 Send a Message
-        </h3>
-    </div>
-""", unsafe_allow_html=True)
-
-chat_input = st.text_input(
-    "",
-    placeholder="Type your message or question here...",
-    key="chat_input"
-)
-
-# --- File Upload Section (Optional for Code or Context) ---
-
-# --- Send Message Button ---
-if st.button("🚀 Send Message"):
-    if chat_input.strip() is not None:
-        # Loading animation
-        st.markdown("""
-            <div class="loading-container">
-                <div class="loading-spinner"></div>
-                <div class="loading-text">🤖 AI is processing your message...</div>
-                <p style="color: #b3b3b8; margin-top: 1rem;">
-                    Analyzing input • Generating response • Optimizing answer
-                </p>
-            </div>
-        """, unsafe_allow_html=True)
-
-# --- Navigation Buttons ---
-st.markdown("""
-    <div class="nav-buttons">
-        <a href="/" class="nav-button">🏠 Home</a>
-        <a href="/Code_Generator" class="nav-button">💻 Code Generator</a>
-        <a href="/Bug_Fixer" class="nav-button">🐛 Bug Fixer</a>
-        <a href="/Test_Generator" class="nav-button">🧪 Test Generator</a>
-        <a href="/Code_Summarizer" class="nav-button">📊 Code Summarizer</a>
-        <a href="/Upload_and_Classify" class="nav-button">📁 Upload and Classify</a>
-        <a href="/Feedback" class="nav-button">📬 Feedback</a>
-    </div>
-""", unsafe_allow_html=True)
-
-st.markdown('</div>', unsafe_allow_html=True)  # Close main container
