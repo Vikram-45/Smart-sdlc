@@ -12,19 +12,35 @@ router = APIRouter()
 
 # Config
 API_KEY = os.getenv("API_KEY")
-BASE_URL = "https://us-south.ml.cloud.ibm.com"  # adjust region if needed
-PROJECT_ID = os.getenv("PROJECT_ID")  # put your project id in .env
+BASE_URL = "https://us-south.ml.cloud.ibm.com"  # Adjust region if needed
+PROJECT_ID = os.getenv("PROJECT_ID")  # Put your project id in .env
 MODEL_ID = "ibm/granite-3-2b-instruct"
 
-# Request schema
+# Request schema for generating test cases
+class TestCaseGenerateRequest(BaseModel):
+    code: str
+    programming_language: str = "python"
+    test_framework: Optional[str] = None  # e.g., "pytest", "unittest"
+    description: Optional[str] = None
+
+# Response schema for generating test cases
+class TestCaseGenerateResponse(BaseModel):
+    original_code: str
+    generated_tests: str
+    programming_language: str
+    test_framework: str
+    message: str
+    raw_response: dict
+
+# Request schema for checking test cases
 class TestCaseCheckRequest(BaseModel):
     code: str
     test_cases: str
     programming_language: str = "python"
-    test_framework: Optional[str] = None  # e.g., "pytest", "unittest", "jest", "junit"
+    test_framework: Optional[str] = None
     description: Optional[str] = None
 
-# Response schema
+# Response schema for checking test cases
 class TestCaseCheckResponse(BaseModel):
     original_code: str
     original_tests: str
@@ -47,16 +63,97 @@ async def get_bearer_token(api_key: str):
         response.raise_for_status()
         return response.json()["access_token"]
 
+@router.post("/generate-test-cases/", response_model=TestCaseGenerateResponse)
+async def generate_test_cases_endpoint(req: TestCaseGenerateRequest):
+    """
+    Generate comprehensive test cases for given code
+    """
+    try:
+        # Validate input
+        if not req.code.strip():
+            raise HTTPException(status_code=400, detail="Code input cannot be empty")
+        
+        # Get bearer token
+        bearer_token = await get_bearer_token(API_KEY)
+
+        # Prepare request with test case generation prompt
+        framework_info = f" using {req.test_framework}" if req.test_framework else ""
+        system_prompt = (
+            f"You are an expert {req.programming_language} testing specialist. "
+            f"Generate comprehensive test cases{framework_info} for the provided code. "
+            "Include:\n"
+            "- Basic functionality tests\n"
+            "- Edge cases and boundary conditions\n"
+            "- Error handling tests\n"
+            "- Performance considerations\n"
+            "- Integration test suggestions\n"
+            "Provide clean, executable test code without markdown formatting."
+        )
+
+        user_message = f"Generate comprehensive test cases for this {req.programming_language} code:\n```{req.programming_language}\n{req.code}\n```"
+        if req.description:
+            user_message += f"\n\nAdditional context:\n{req.description}"
+
+        url = f"{BASE_URL}/ml/v1/text/chat?version=2023-05-29"
+        body = {
+            "project_id": PROJECT_ID,
+            "model_id": MODEL_ID,
+            "frequency_penalty": 0,
+            "max_tokens": 3000,
+            "presence_penalty": 0,
+            "temperature": 0.3,
+            "top_p": 1,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_message}
+            ]
+        }
+        headers = {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {bearer_token}"
+        }
+
+        # Make request to WatsonX AI
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            response = await client.post(url, headers=headers, json=body)
+
+        if response.status_code != 200:
+            raise HTTPException(status_code=response.status_code, detail=f"WatsonX AI API error: {response.text}")
+
+        response_data = response.json()
+        generated_tests = response_data.get("choices", [{}])[0].get("message", {}).get("content", "")
+
+        return TestCaseGenerateResponse(
+            original_code=req.code,
+            generated_tests=generated_tests.strip(),
+            programming_language=req.programming_language,
+            test_framework=req.test_framework or "standard",
+            message="Test cases generated successfully",
+            raw_response=response_data
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
 @router.post("/check-test-cases/", response_model=TestCaseCheckResponse)
 async def check_test_cases_endpoint(req: TestCaseCheckRequest):
     """
     Analyze and improve test cases using IBM WatsonX AI
     """
     try:
-        # Step 1: Get bearer token
+        # Validate input
+        if not req.code.strip():
+            raise HTTPException(status_code=400, detail="Code input cannot be empty")
+        if not req.test_cases.strip():
+            raise HTTPException(status_code=400, detail="Test cases cannot be empty")
+
+        # Get bearer token
         bearer_token = await get_bearer_token(API_KEY)
 
-        # Step 2: Prepare request with test case analysis prompt
+        # Prepare request with test case analysis prompt
         system_prompt = (
             f"You are an expert {req.programming_language} developer and testing specialist. "
             "Your task is to analyze the provided code and test cases, then provide comprehensive feedback and improvements. "
@@ -100,7 +197,7 @@ Existing test cases{framework_info}:
             "frequency_penalty": 0,
             "max_tokens": 4000,
             "presence_penalty": 0,
-            "temperature": 0.2,  # Slightly higher for creative test case generation
+            "temperature": 0.2,
             "top_p": 1,
             "messages": [
                 {"role": "system", "content": system_prompt},
@@ -113,11 +210,10 @@ Existing test cases{framework_info}:
             "Authorization": f"Bearer {bearer_token}"
         }
 
-        # Step 3: Make request to WatsonX AI
+        # Make request to WatsonX AI
         async with httpx.AsyncClient(timeout=120.0) as client:
             response = await client.post(url, headers=headers, json=body)
 
-        # Step 4: Process response
         if response.status_code != 200:
             raise HTTPException(status_code=response.status_code, detail=f"WatsonX AI API error: {response.text}")
 
@@ -198,85 +294,7 @@ Existing test cases{framework_info}:
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
-# Alternative endpoint for simple test case checking
-@router.post("/check-tests-simple/")
-async def check_tests_simple(code: str, test_cases: str, language: str = "python"):
-    """
-    Simplified test case checking endpoint
-    """
-    try:
-        request = TestCaseCheckRequest(
-            code=code, 
-            test_cases=test_cases, 
-            programming_language=language
-        )
-        return await check_test_cases_endpoint(request)
-    except Exception as e:
-        return {"error": str(e)}
-
-# Generate test cases endpoint
-@router.post("/generate-test-cases/")
-async def generate_test_cases(code: str, language: str = "python", framework: str = None):
-    """
-    Generate comprehensive test cases for given code
-    """
-    try:
-        # Get bearer token
-        bearer_token = await get_bearer_token(API_KEY)
-
-        framework_info = f" using {framework}" if framework else ""
-        system_prompt = (
-            f"You are an expert {language} testing specialist. "
-            f"Generate comprehensive test cases{framework_info} for the provided code. "
-            "Include:\n"
-            "- Basic functionality tests\n"
-            "- Edge cases and boundary conditions\n"
-            "- Error handling tests\n"
-            "- Performance considerations\n"
-            "- Integration test suggestions\n"
-            "Provide clean, executable test code."
-        )
-
-        user_message = f"Generate comprehensive test cases for this {language} code:\n```{language}\n{code}\n```"
-
-        url = f"{BASE_URL}/ml/v1/text/chat?version=2023-05-29"
-        body = {
-            "project_id": PROJECT_ID,
-            "model_id": MODEL_ID,
-            "frequency_penalty": 0,
-            "max_tokens": 3000,
-            "presence_penalty": 0,
-            "temperature": 0.3,
-            "top_p": 1,
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_message}
-            ]
-        }
-        headers = {
-            "Accept": "application/json",
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {bearer_token}"
-        }
-
-        async with httpx.AsyncClient(timeout=120.0) as client:
-            response = await client.post(url, headers=headers, json=body)
-
-        if response.status_code != 200:
-            return {"error": f"WatsonX AI API error: {response.text}"}
-
-        response_data = response.json()
-        generated_tests = response_data.get("choices", [{}])[0].get("message", {}).get("content", "")
-        
-        return {
-            "original_code": code,
-            "generated_tests": generated_tests,
-            "programming_language": language,
-            "test_framework": framework or "standard",
-            "raw_response": response_data
-        }
-
-    except Exception as e:
-        return {"error": str(e)}
-
 # Health check endpoint
+@router.get("/health")
+async def health_check():
+    return {"status": "healthy", "service": "Test Generator"}

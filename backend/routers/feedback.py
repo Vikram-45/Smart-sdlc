@@ -67,7 +67,7 @@ def save_feedback_data(feedback_list):
         return False
 
 # API Endpoint
-@router.post("/submit-feedback/", response_model=FeedbackResponse)
+@router.post("/api/feedback", response_model=FeedbackResponse)
 async def submit_feedback(feedback: FeedbackRequest):
     """Submit new feedback"""
     try:
@@ -103,6 +103,3 @@ async def submit_feedback(feedback: FeedbackRequest):
         raise HTTPException(status_code=500, detail=f"Error submitting feedback: {str(e)}")
 
 # Health check endpoint
-@router.get("/health")
-async def health_check():
-    return {"status": "healthy", "service": "Feedback System"}

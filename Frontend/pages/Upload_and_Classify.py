@@ -2,7 +2,6 @@ import streamlit as st
 import requests
 import json
 import re
-from typing import Dict, List
 
 st.set_page_config(page_title="SmartSDLC - Upload and Classify", layout="wide")
 
@@ -260,27 +259,51 @@ st.markdown("""
             transform: translateY(-2px);
             box-shadow: 0 8px 25px rgba(0,195,255,0.4);
         }
+        
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .main-container {
+                padding: 1rem;
+            }
+            
+            .page-title {
+                font-size: 2rem;
+            }
+            
+            .feature-card {
+                padding: 1.5rem;
+            }
+            
+            .result-container {
+                padding: 1.5rem;
+            }
+            
+            .nav-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+        
+        a {
+            text-decoration: none !important;
+        }
     </style>
 """, unsafe_allow_html=True)
 
 # Configuration
-API_BASE_URL = "http://localhost:8000"  # Change this to your FastAPI server URL
+API_BASE_URL = "http://localhost:8000"
 
 # Function to make API request
 def classify_pdf(uploaded_file):
-    """Send PDF file to FastAPI for classification"""
     try:
         files = {"file": (uploaded_file.name, uploaded_file.getvalue(), "application/pdf")}
-        
         with st.spinner("🤖 AI is analyzing your PDF..."):
             response = requests.post(f"{API_BASE_URL}/classify-pdf-sdlc/", files=files, timeout=120)
-        
         if response.status_code == 200:
             return response.json()
         else:
             st.error(f"API Error: {response.status_code} - {response.text}")
             return None
-            
     except requests.exceptions.ConnectionError:
         st.error("❌ Could not connect to the API server. Please ensure the FastAPI server is running.")
         return None
@@ -290,6 +313,46 @@ def classify_pdf(uploaded_file):
     except Exception as e:
         st.error(f"❌ An unexpected error occurred: {str(e)}")
         return None
+
+# Function to parse classified sentences string into a dictionary
+def parse_classified_sentences(classified_sentences: str) -> dict:
+    try:
+        # Initialize dictionary for SDLC phases
+        result = {
+            "requirements": [],
+            "design": [],
+            "development": [],
+            "testing": [],
+            "deployment": [],
+            "general": [],
+            "other": []
+        }
+        
+        # Split the string into lines, handling numbered or unnumbered formats
+        lines = classified_sentences.strip().split("\n")
+        
+        # Regex to match "Sentence: [text] | Phase: [phase]" with optional numbering
+        pattern = r"(?:\d+\.\s*)?Sentence:\s*(.*?)\s*\|\s*Phase:\s*([^|]+)"
+        
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+            match = re.match(pattern, line)
+            if match:
+                sentence = match.group(1).strip()
+                phase = match.group(2).strip().lower()
+                # Map phase to one of the expected keys, default to 'other' if unrecognized
+                phase_key = phase if phase in result else "other"
+                result[phase_key].append(sentence)
+            else:
+                # Log unparseable lines for debugging
+                st.warning(f"⚠️ Could not parse line: {line}")
+        
+        return result
+    except Exception as e:
+        st.error(f"❌ Failed to parse classified sentences: {str(e)}")
+        return {}
 
 # --- Header ---
 st.markdown("""
@@ -333,53 +396,109 @@ uploaded_file = st.file_uploader(
     key="file_uploader"
 )
 
+# --- Debug Toggle ---
+# debug_mode = st.checkbox("Show raw backend response for debugging", value=False)
+
 # --- Classify Button ---
-if st.button("🚀 Classify PDF"):
-    if uploaded_file is not None:
-        # Loading animation
-        st.markdown("""
-            <div class="loading-container">
-                <div class="loading-spinner"></div>
-                <div class="loading-text">🤖 AI is classifying your PDF...</div>
-                <p style="color: #b3b3b8; margin-top: 1rem;">
-                    Extracting text • Analyzing content • Classifying sentences
-                </p>
-            </div>
-        """, unsafe_allow_html=True)
-        
-        # Make API call
-        result = classify_pdf(uploaded_file)
-        
-        # Clear loading animation
-        st.empty()
-        
-        if result:
-            # Display results in single card
-            st.markdown("""
-                <div class="result-container">
-                    <h2 style="color: #00c851; font-family: 'Orbitron', sans-serif; text-align: center; margin-bottom: 2rem;">
-                        ✅ Classification Results
-                    </h2>
-                    <div class="phase-card">
-                        <div class="phase-header">
-                            <span style="font-size: 1.5rem;">📋</span>
-                            <span style="color: #ff6b35; font-family: 'Orbitron', sans-serif;">Requirements</span>
-                        </div>
-                        <div class="phase-content">
-            """, unsafe_allow_html=True)
-            
-            st.markdown(f"""
-                <div class="sentence-item">
-                    {result["classified_sentences"]}
+col1, col2, col3 = st.columns([1, 2, 1])
+with col2:
+    if st.button("🚀 Classify PDF"):
+        if uploaded_file is not None:
+            # Loading animation
+            result_placeholder = st.empty()
+            result_placeholder.markdown("""
+                <div class="loading-container">
+                    <div class="loading-spinner"></div>
+                    <div class="loading-text">🤖 AI is classifying your PDF...</div>
+                    <p style="color: #b3b3b8; margin-top: 1rem;">
+                        Extracting text • Analyzing content • Classifying sentences
+                    </p>
                 </div>
             """, unsafe_allow_html=True)
             
-            st.markdown("</div></div></div>", unsafe_allow_html=True)
+            # Make API call
+            result = classify_pdf(uploaded_file)
             
+            # Clear loading animation
+            result_placeholder.empty()
+            
+            if result and "classified_sentences" in result:
+                # Display raw response if debug mode is enabled
+                # if debug_mode:
+                #     st.subheader("Raw Backend Response")
+                #     st.code(json.dumps(result, indent=2))
+                
+                # Parse the classified_sentences string
+                classified_sentences = parse_classified_sentences(result["classified_sentences"])
+                
+                if not any(classified_sentences.values()):
+                    st.error("❌ No valid classifications found. Raw backend response:")
+                    st.code(json.dumps(result, indent=2))
+                else:
+                    # Start result container
+                    st.markdown("""
+                        <div class="result-container">
+                            <h2 style="color: #00c851; font-family: 'Orbitron', sans-serif; text-align: center; margin-bottom: 2rem;">
+                                ✅ Classification Results
+                            </h2>
+                    """, unsafe_allow_html=True)
+                    
+                    # Define SDLC phases and their display colors
+                    phases = [
+                        ("Requirements", "#ff6b35"),
+                        ("Design", "#00c3ff"),
+                        ("Development", "#69f0ae"),
+                        ("Testing", "#ffca28"),
+                        ("Deployment", "#ab47bc"),
+                        ("General", "#b0bec5"),
+                        ("Other", "#78909c")
+                    ]
+                    
+                    # Display each phase with its sentences
+                    for phase, color in phases:
+                        sentences = classified_sentences.get(phase.lower(), [])
+                        if sentences:
+                            st.markdown(f"""
+                                <div class="phase-card">
+                                    <div class="phase-header">
+                                        <span style="font-size: 1.5rem;">📋</span>
+                                        <span style="color: {color}; font-family: 'Orbitron', sans-serif;">{phase}</span>
+                                    </div>
+                                    <div class="phase-content">
+                            """, unsafe_allow_html=True)
+                            
+                            for sentence in sentences:
+                                st.markdown(f"""
+                                    <div class="sentence-item">
+                                        {sentence}
+                                    </div>
+                                """, unsafe_allow_html=True)
+                            
+                            st.markdown("</div></div>", unsafe_allow_html=True)
+                        else:
+                            st.markdown(f"""
+                                <div class="phase-card">
+                                    <div class="phase-header">
+                                        <span style="font-size: 1.5rem;">📋</span>
+                                        <span style="color: {color}; font-family: 'Orbitron', sans-serif;">{phase}</span>
+                                    </div>
+                                    <div class="phase-content">
+                                        <div class="sentence-item">
+                                            No sentences classified for this phase.
+                                        </div>
+                                    </div>
+                                </div>
+                            """, unsafe_allow_html=True)
+                    
+                    # Close result container
+                    st.markdown("</div>", unsafe_allow_html=True)
+            else:
+                st.error("❌ Failed to classify the PDF. Please check the file and try again.")
+                if result:
+                    st.error("Raw backend response:")
+                    st.code(json.dumps(result, indent=2))
         else:
-            st.error("❌ Failed to classify the PDF. Please check the file and try again.")
-    else:
-        st.warning("⚠️ Please upload a PDF file first!")
+            st.warning("⚠️ Please upload a PDF file first!")
 
 # Show file info if uploaded
 if uploaded_file is not None:
@@ -392,7 +511,7 @@ st.markdown("""
         <a href="/Code_Generator" class="nav-button">💻 Code Generator</a>
         <a href="/Bug_Fixer" class="nav-button">🐛 Bug Fixer</a>
         <a href="/Test_Generator" class="nav-button">🧪 Test Generator</a>
-        <a href="/Chat_Bot" class="nav-button">🤖 Chat bot</a>
+        <a href="/ChatBot" class="nav-button">🤖 Chat Bot</a>
     </div>
 """, unsafe_allow_html=True)
 

@@ -1,4 +1,6 @@
 import streamlit as st
+import requests
+import time
 
 st.set_page_config(page_title="SmartSDLC - Bug Fixer", layout="wide")
 
@@ -16,7 +18,7 @@ st.markdown("""
         html, body, .stApp {
             background: #101014 !important;
             color: #f5f5f7 !important;
-            font-family: 'Orbitron, sans-serif !important;
+            font-family: 'Orbitron', sans-serif !important;
             margin: 0;
             padding-top: 80px !important;
         }
@@ -115,6 +117,45 @@ st.markdown("""
             background: #111115 !important;
         }
         
+        .stFileUploader > div > div > div > input {
+            background: #0d0d0f !important;
+            color: #f5f5f7 !important;
+            border: 2px solid #23232a !important;
+            border-radius: 1rem !important;
+            font-family: 'Courier New', monospace !important;
+            font-size: 0.9rem !important;
+            padding: 1rem !important;
+            transition: all 0.3s ease !important;
+        }
+        
+        .stFileUploader > div > div > div > input:focus {
+            border-color: #00c3ff !important;
+            box-shadow: 0 0 20px rgba(0, 195, 255, 0.3) !important;
+            background: #111115 !important;
+        }
+        
+        div[data-testid="stFileUploader"] button {
+            background: linear-gradient(135deg, #00c3ff, #7600bc) !important;
+            color: white !important;
+            border: none !important;
+            border-radius: 1rem !important;
+            font-family: 'Orbitron', sans-serif !important;
+            font-weight: 600 !important;
+            font-size: 0.9rem !important;
+            padding: 0.8rem 1.5rem !important;
+            transition: all 0.3s ease !important;
+            box-shadow: 0 8px 25px rgba(0, 195, 255, 0.4) !important;
+            text-transform: uppercase !important;
+            letter-spacing: 1px !important;
+            outline: none !important;
+        }
+        
+        div[data-testid="stFileUploader"] button:hover {
+            background: linear-gradient(135deg, #7600bc, #00c3ff) !important;
+            transform: translateY(-3px) scale(1.05) !important;
+            box-shadow: 0 15px 35px rgba(0, 195, 255, 0.6) !important;
+        }
+        
         /* Button styling */
         .stButton > button {
             background: linear-gradient(135deg, #00c3ff, #7600bc) !important;
@@ -137,33 +178,10 @@ st.markdown("""
             box-shadow: 0 15px 35px rgba(0, 195, 255, 0.6) !important;
         }
         
-        /* Result container */
-        .result-container {
-            background: linear-gradient(135deg, #0f1419 0%, #1a1f2e 100%);
-            border-radius: 1.5rem;
-            padding: 2rem;
-            margin: 2rem 0;
-            border: 1px solid #23232a;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .result-container::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 3px;
-            background: linear-gradient(90deg, #00c851, #69f0ae, #00c851);
-            opacity: 0.8;
-        }
-        
         /* Code block styling */
         .stCode {
             background: #0a0a0c !important;
-            border: 1px solid #23232a !important;
+            border: 1px solid #00c851 !important;
             border-radius: 1rem !important;
             box-shadow: inset 0 2px 10px rgba(0,0,0,0.3) !important;
         }
@@ -252,69 +270,22 @@ st.markdown("""
             transform: translateY(-2px);
             box-shadow: 0 8px 25px rgba(0,195,255,0.4);
         }
-        
-        /* Bug analysis sections */
-        .bug-analysis {
-            background: rgba(0, 195, 255, 0.1);
-            border: 1px solid #00c3ff;
-            border-radius: 1rem;
-            padding: 1.5rem;
-            margin: 1rem 0;
-        }
-        
-        .bug-item {
-            background: rgba(0, 195, 255, 0.05);
-            border-left: 4px solid #00c3ff;
-            padding: 1rem;
-            margin: 0.5rem 0;
-            border-radius: 0 0.5rem 0.5rem 0;
-        }
-        
-        .fix-preview {
-            background: rgba(0, 200, 81, 0.1);
-            border: 1px solid #00c851;
-            border-radius: 1rem;
-            padding: 1.5rem;
-            margin: 1rem 0;
-        }
-        
-        /* Metrics cards */
-        .metrics-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
-            margin: 2rem 0;
-        }
-        
-        .metric-card {
+        .response-meta {
             background: linear-gradient(135deg, #18181c 0%, #1e1e24 100%);
             border-radius: 1rem;
             padding: 1.5rem;
-            text-align: center;
+            margin-top: 1rem;
             border: 1px solid #23232a;
-            transition: all 0.3s ease;
-        }
-        
-        .metric-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 12px 25px rgba(0,195,255,0.2);
-        }
-        
-        .metric-value {
-            font-family: 'Poppins', sans-serif;
-            font-size: 2.5rem;
-            font-weight: 800;
-            background: linear-gradient(120deg, #00c3ff, #7600bc);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        
-        .metric-label {
-            font-family: 'Poppins', sans-serif;
-            font-size: 0.9rem;
             color: #b3b3b8;
-            margin-top: 0.5rem;
-            font-weight: 500;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.9rem;
+        }
+        .response-meta p {
+            margin: 0.5rem 0;
+        }
+        .warning {
+            color: #ff7777;
+            font-weight: 600;
         }
         
         /* Responsive design */
@@ -335,12 +306,97 @@ st.markdown("""
                 flex-direction: column;
                 align-items: center;
             }
-            a {
-                text-decoration: none !important;
-            }
+        }
+        
+        a {
+            text-decoration: none !important;
         }
     </style>
 """, unsafe_allow_html=True)
+
+import streamlit as st
+import requests
+import time
+import json
+
+st.set_page_config(page_title="SmartSDLC - Bug Fixer", layout="wide")
+
+# --- Enhanced Global CSS ---
+st.markdown("""
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800&display=swap" rel="stylesheet">
+
+    <style>
+        /* [Previous CSS unchanged for brevity] */
+        .response-meta {
+            background: linear-gradient(135deg, #18181c 0%, #1e1e24 100%);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            margin-top: 1rem;
+            border: 1px solid #23232a;
+            color: #b3b3b8;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.9rem;
+        }
+        .response-meta p {
+            margin: 0.5rem 0;
+        }
+        .warning {
+            color: #ff7777;
+            font-weight: 600;
+        }
+        .debug-info {
+            background: #0a0a0c;
+            border: 1px solid #23232a;
+            border-radius: 1rem;
+            padding: 1rem;
+            margin-top: 1rem;
+            color: #b3b3b8;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
+import re
+
+# --- Backend Integration Class ---
+class BugFixerBackend:
+    def __init__(self):
+        self.backend_url = "http://127.0.0.1:8000/fix-bug/"
+
+    def send_to_backend(self, code: str, programming_language: str = "python") -> dict:
+        try:
+            headers = {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            }
+            payload = {
+                'code': code,
+                'programming_language': programming_language,
+                'analysis_type': 'comprehensive'
+            }
+            response = requests.post(
+                self.backend_url,
+                json=payload,
+                headers=headers,
+                timeout=30
+            )
+            if response.status_code in [200, 201]:
+                try:
+                    return response.json()
+                except json.JSONDecodeError:
+                    return {'error': 'Invalid JSON response from backend'}
+            else:
+                return {'error': f'Backend error: {response.status_code} - {response.text}'}
+        except requests.exceptions.RequestException as e:
+            return {'error': f'Failed to connect to backend: {str(e)}'}
+
+# Initialize backend
+@st.cache_resource
+def get_bug_fixer():
+    return BugFixerBackend()
+
+bug_fixer = get_bug_fixer()
 
 # --- Header ---
 st.markdown("""
@@ -364,6 +420,7 @@ st.markdown("""
     <div class="feature-card">
         <p style="text-align: center; color: #b3b3b8; font-size: 1.2rem; margin: 0; line-height: 1.6; font-family:'Orbitron', sans-serif;">
             🔍 Automatically detect, analyze, and fix bugs in your code<br>
+            <span style="font-size: 1rem; color: #00c3ff;">✨ Powered by AI • Real-time Analysis • Comprehensive Fixes</span>
         </p>
     </div>
 """, unsafe_allow_html=True)
@@ -372,14 +429,22 @@ st.markdown("""
 st.markdown("""
     <div style="margin: 2rem 0;">
         <h3 style="color: #00c3ff; font-family: 'Orbitron', sans-serif; font-size: 1.5rem; margin-bottom: 1rem;">
-            📝 Paste Your Buggy Code
+            📝 Paste Your Buggy Code or Upload File
         </h3>
     </div>
 """, unsafe_allow_html=True)
 
+# --- File Uploader ---
+uploaded_file = st.file_uploader(
+    "Upload a code file (.py, .js, .java, etc.)",
+    type=["py", "js", "java", "cpp", "cs"],
+    key="code_file"
+)
+
+# --- Text Area for Code Input ---
 code = st.text_area(
     "",
-    placeholder="""# Paste your buggy code here...
+    placeholder="""# Paste your buggy code here or upload a file...
 # Example:
 def calculate_average(numbers):
     sum = 0
@@ -397,27 +462,67 @@ def calculate_average(numbers):
     key="bug_code_input"
 )
 
-# --- Fix Button ---
-if st.button("🔧 Analyze & Fix Bugs"):
-    if code.strip():
-        # Loading animation
-        st.markdown("""
-            <div class="loading-container">
-                <div class="loading-spinner"></div>
-                <div class="loading-text">🤖 AI is analyzing your code...</div>
-                <p style="color: #b3b3b8; margin-top: 1rem;">
-                    Scanning for bugs • Identifying issues • Generating fixes
-                </p>
-            </div>
-        """, unsafe_allow_html=True)
+# Process uploaded file
+if uploaded_file is not None:
+    try:
+        code = uploaded_file.read().decode("utf-8")
+        st.session_state.bug_code_input = code
+    except Exception as e:
+        st.error(f"❌ Error reading file: {str(e)}")
+
+# --- Fix Button with Backend Integration ---
+col1, col2, col3 = st.columns([1, 2, 1])
+with col2:
+    if st.button("🔧 Analyze & Fix Bugs"):
+        if not code.strip():
+            st.error("⚠️ Please provide code by pasting it or uploading a file")
+        else:
+            result_placeholder = st.empty()
+            result_placeholder.markdown("""
+                <div class="loading-container">
+                    <div class="loading-spinner"></div>
+                    <div class="loading-text">🤖 AI is analyzing your code...</div>
+                </div>
+            """, unsafe_allow_html=True)
+            
+            result = bug_fixer.send_to_backend(code)
+            
+            result_placeholder.empty()  # Clear the loading animation
+            
+            
+            # Check for error in response
+            if 'error' in result:
+                st.error(f"❌ Error: {result['error']}")
+            else:
+                # Extract fields
+                fixed_code = result.get('fixed_code', code)
+                processing_time = result.get('processing_time', 'N/A')
+                raw_response = result.get('raw_response', {})
+                warnings = raw_response.get('system', {}).get('warnings', [])
+                
+                
+                # Display fixed code
+                if fixed_code and fixed_code != code:
+                    st.markdown("""
+                        <h3 style="color: #00c3ff; font-family: 'Orbitron', sans-serif; font-size: 1.5rem;">
+                            🛠️ Fixed Code
+                        </h3>
+                    """, unsafe_allow_html=True)
+                    st.code(fixed_code, language="python")
+                else:
+                    st.success("🎉 No bugs found or no changes made to your code!")
+                
+                # Display response metadata
+                
+# --- Navigation Buttons ---
 st.markdown("""
     <div class="nav-buttons">
         <a href="/" class="nav-button">🏠 Home</a>
         <a href="/Code_Generator" class="nav-button">🚀 Code Generator</a>
         <a href="/Test_Generator" class="nav-button">🧪 Test Generator</a>
-        <a href="/Chat_Bot" class="nav-button">🤖 Chat bot</a>
+        <a href="/Chat_Bot" class="nav-button">🤖 Chat Bot</a>
         <a href="/Upload_and_Classify" class="nav-button">📁 Upload and Classify</a>
     </div>
 """, unsafe_allow_html=True)
 
-st.markdown('</div>', unsafe_allow_html=True)  # Close main container
+st.markdown('</div>', unsafe_allow_html=True)

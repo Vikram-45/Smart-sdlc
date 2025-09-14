@@ -1,4 +1,6 @@
 import streamlit as st
+import requests
+import time
 
 st.set_page_config(page_title="SmartSDLC - Test Generator", layout="wide")
 
@@ -318,6 +320,58 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+# --- Backend Integration Class ---
+class TestGeneratorBackend:
+    def __init__(self):
+        self.backend_url = "http://127.0.0.1:8000/generate-test-cases/"
+
+    def generate_test_cases(self, code: str, programming_language: str = "python", test_framework: str = None) -> dict:
+        """
+        Submit code to backend to generate test cases
+        """
+        try:
+            headers = {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            }
+            
+            data = {
+                "code": code,
+                "programming_language": programming_language,
+                "test_framework": test_framework
+            }
+            
+            response = requests.post(
+                self.backend_url,
+                json=data,
+                headers=headers,
+                timeout=30
+            )
+            
+            if response.status_code in [200, 201]:
+                return {
+                    'success': True,
+                    'data': response.json()
+                }
+            else:
+                return {
+                    'success': False,
+                    'error': f'Server error: {response.status_code} - {response.text}'
+                }
+                
+        except requests.exceptions.RequestException as e:
+            return {
+                'success': False,
+                'error': f'Failed to connect to backend: {str(e)}'
+            }
+
+# Initialize backend
+@st.cache_resource
+def get_test_generator_backend():
+    return TestGeneratorBackend()
+
+backend = get_test_generator_backend()
+
 # --- Header ---
 st.markdown("""
     <div class="smartsdlc-header">
@@ -353,6 +407,13 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
+# --- File Uploader ---
+uploaded_file = st.file_uploader(
+    "Upload a code file (.py, .js, .java, etc.)",
+    type=["py", "js", "java", "cpp", "cs"],
+    key="code_file"
+)
+
 # --- Text Area for Code Input ---
 code_input = st.text_area(
     "",
@@ -370,20 +431,68 @@ code_input = st.text_area(
     key="code_input"
 )
 
+# Process uploaded file
+if uploaded_file is not None:
+    try:
+        code_input = uploaded_file.read().decode("utf-8")
+        st.session_state.code_input = code_input
+    except Exception as e:
+        st.error(f"❌ Error reading file: {str(e)}")
 
 # --- Generate Tests Button ---
-if st.button("🚀 Generate Tests"):
-    if code_input.strip()  is not None:
-        # Loading animation
-        st.markdown("""
-            <div class="loading-container">
-                <div class="loading-spinner"></div>
-                <div class="loading-text">🤖 AI is generating your tests...</div>
-                <p style="color: #b3b3b8; margin-top: 1rem;">
-                    Analyzing code • Generating test cases • Optimizing output
-                </p>
-            </div>
-        """, unsafe_allow_html=True)
+col1, col2, col3 = st.columns([1, 2, 1])
+with col2:
+    if st.button("🚀 Generate Tests"):
+        if not code_input.strip():
+            st.error("⚠️ Please provide code by pasting it or uploading a file")
+        else:
+            # Create placeholder for result
+            result_placeholder = st.empty()
+            
+            # Show loading animation
+            result_placeholder.markdown("""
+                <div class="loading-container">
+                    <div class="loading-spinner"></div>
+                    <div class="loading-text">🤖 AI is generating your tests...</div>
+                    <p style="color: #b3b3b8; margin-top: 1rem;">
+                        Analyzing code • Generating test cases • Optimizing output
+                    </p>
+                </div>
+            """, unsafe_allow_html=True)
+            
+            # Submit to backend
+            result = backend.generate_test_cases(
+                code=code_input,
+                programming_language="python",  # Default to Python, can be extended for other languages
+                test_framework="pytest"  # Default to pytest
+            )
+            
+            if result.get('success'):
+                # Display results
+                result_placeholder.markdown("""
+                    <div class="result-container">
+                        <h3 style="color: #69f0ae; font-family: 'Orbitron', sans-serif; font-size: 1.5rem; margin-bottom: 1rem;">
+                            ✅ Generated Test Cases
+                        </h3>
+                    </div>
+                """, unsafe_allow_html=True)
+                
+                # Display original code
+                st.markdown("**Original Code**")
+                st.code(result['data']['original_code'], language="python")
+                
+                # Display generated tests
+                st.markdown("**Generated Test Cases**")
+                st.code(result['data']['generated_tests'], language="python")
+                
+                # Display message
+                st.success(result['data']['message'])
+                
+                # Reset form
+                
+                
+            else:
+                result_placeholder.error(f"❌ Error: {result.get('error', 'Unknown error occurred')}")
 
 # --- Navigation Buttons ---
 st.markdown("""
@@ -391,7 +500,7 @@ st.markdown("""
         <a href="/" class="nav-button">🏠 Home</a>
         <a href="/Code_Generator" class="nav-button">💻 Code Generator</a>
         <a href="/Bug_Fixer" class="nav-button">🐛 Bug Fixer</a>
-       <a href="/Chat_Bot" class="nav-button">🤖 Chat bot</a>
+        <a href="/ChatBot" class="nav-button">🤖 Chat Bot</a>
         <a href="/Upload_and_Classify" class="nav-button">📁 Upload and Classify</a>
     </div>
 """, unsafe_allow_html=True)

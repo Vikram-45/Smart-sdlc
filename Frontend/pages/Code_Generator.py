@@ -115,7 +115,7 @@ st.markdown("""
         <a href="/" class="nav-button">🏠 Home</a>
         <a href="/Bug_Fixer" class="nav-button">🐛 Bug Fixer</a>
         <a href="/Test_Generator" class="nav-button">🧪 Test Generator</a>
-        <a href="/Chat_Bot" class="nav-button">🤖 Chat bot</a>
+        <a href="/ChatBot" class="nav-button">🤖 Chat bot</a>
         <a href="/Upload_and_Classify" class="nav-button">📁 Upload and Classify</a>
     </div>
 """, unsafe_allow_html=True)

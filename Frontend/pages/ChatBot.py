@@ -218,7 +218,6 @@ st.markdown("""
         <a href="/Code_Generator" class="nav-button" >💻 Code Generator</a>
         <a href="/Bug_Fixer" class="nav-button">🐛 Bug Fixer</a>
         <a href="/Test_Generator" class="nav-button">🧪 Test Generator</a>
-        <a href="/Code_Summarizer" class="nav-button">📊 Code Summarizer</a>
         <a href="/Upload_and_Classify" class="nav-button">📁 Upload and Classify</a>
         <a href="/Feedback" class="nav-button">📬 Feedback</a>
     </div>
